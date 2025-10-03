@@ -1,2 +1,17 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using System;
+using FirstEngine;
+using WindowEngine;
+
+namespace WindowEngine
+{
+  class Program
+  {
+    static void Main(string[] args)
+    {
+      using (Game game = new Game())
+      {
+        game.Run();
+      }
+    }
+  }
+}
