@@ -12,8 +12,8 @@ namespace FirstEngine
     private int vbo;
     private int vao;
     private int ebo;
-    private int _uLeftXLoc;
-    private int _uWidthLoc;
+    private int timeLoc;
+    private float time;
     private int shaderProgramHandle;
     private static NativeWindowSettings native = new()
     {
@@ -46,6 +46,7 @@ namespace FirstEngine
       GL.Viewport(0, 0, fbSize.X, fbSize.Y);
 
       // vertex positions (4 vertex)
+      // THis is from A1, if we fix the window size it will be square, currently not dynamic
       float[] vertices = new float[]
       {
         -0.5f, 0.5f, 0.0f, //0
@@ -80,28 +81,34 @@ namespace FirstEngine
       GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
       GL.BindVertexArray(0);
 
+      // I'm changing the vertex shader to calculate and output uv to fragment shader
       string vertexShaderCode = @"
         #version 330 core
         layout(location = 0) in vec3 aPosition;
 
+        out vec2 vUV;
+
         void main()
         {
           gl_Position = vec4(aPosition, 1.0);
+          vUV = aPosition.xy + vec2(0.5);
         }
       ";
 
       string fragmentShaderCode = @"
       #version 330 core
+      in vec2 vUV;
       out vec4 FragColor;
 
-      uniform float uLeftX;   // left X of the quad (in pixels)
-      uniform float uWidth;   // width of the quad (in pixels)
+      uniform float uTime;
 
       void main()
       {
-        // gl_FragCoord.x is in window pixels (origin bottom-left)
-        float t = clamp((gl_FragCoord.x - uLeftX) / uWidth, 0.0, 1.0);
-        FragColor = vec4(0.0, 0.0, t, 1.0);
+        float red = clamp(vUV.x, 0.0, 1.0);
+        float green = clamp(vUV.y, 0.0, 1.0);
+        float blue = 0.5 + 0.5 * sin(uTime); // this is additional from exercise
+
+        FragColor = vec4(red, green, blue, 1.0);
       }
       ";
 
@@ -120,8 +127,7 @@ namespace FirstEngine
       GL.AttachShader(shaderProgramHandle, fShaderHandle);
       GL.LinkProgram(shaderProgramHandle);
 
-      _uLeftXLoc  = GL.GetUniformLocation(shaderProgramHandle, "uLeftX");
-      _uWidthLoc  = GL.GetUniformLocation(shaderProgramHandle, "uWidth");
+      timeLoc = GL.GetUniformLocation(shaderProgramHandle, "uTime");
 
 
       GL.DetachShader(shaderProgramHandle, vShaderHandle);
@@ -133,6 +139,7 @@ namespace FirstEngine
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
       base.OnUpdateFrame(args);
+      time += (float)args.Time;
     }
 
     protected override void OnRenderFrame(FrameEventArgs args)
@@ -141,14 +148,8 @@ namespace FirstEngine
       GL.Clear(ClearBufferMask.ColorBufferBit);
       GL.UseProgram(shaderProgramHandle);
 
-      var fb = FramebufferSize;
-      float W = fb.X; 
+      GL.Uniform1(timeLoc, time);
 
-      float leftX = 0.25f * W;
-      float width = 0.50f * W;
-
-      GL.Uniform1(_uLeftXLoc, leftX);
-      GL.Uniform1(_uWidthLoc, width);
       GL.BindVertexArray(vao);
       // Draw element using ebo
       GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
