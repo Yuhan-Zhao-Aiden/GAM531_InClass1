@@ -14,6 +14,7 @@ namespace FirstEngine
     private int ebo;
     private int timeLoc, rotationLoc, scaleLoc, centerLoc;
     private float time, angle = 0f, scale;
+    private int screenSizeLoc;
     private int shaderProgramHandle;
     private static NativeWindowSettings native = new()
     {
@@ -90,10 +91,14 @@ namespace FirstEngine
         uniform mat2 uRotation;
         uniform float uScale;
         uniform vec2 uCenter;
+        uniform vec2 uScreenSize;
 
         void main()
         {
           vec2 pos = uCenter + uRotation * (aPosition.xy * uScale);
+
+          float aspect = uScreenSize.x / uScreenSize.y;
+          pos.x = pos.x / aspect;
           gl_Position = vec4(pos, aPosition.z, 1.0);
           vUV = aPosition.xy + vec2(0.5);
         }
@@ -135,6 +140,7 @@ namespace FirstEngine
       rotationLoc = GL.GetUniformLocation(shaderProgramHandle, "uRotation");
       scaleLoc = GL.GetUniformLocation(shaderProgramHandle, "uScale");
       centerLoc = GL.GetUniformLocation(shaderProgramHandle, "uCenter");
+      screenSizeLoc = GL.GetUniformLocation(shaderProgramHandle, "uScreenSize");
 
 
       GL.DetachShader(shaderProgramHandle, vShaderHandle);
@@ -158,6 +164,9 @@ namespace FirstEngine
 
       GL.Uniform1(timeLoc, time);
 
+      // get the latest screen size
+      var fbz = FramebufferSize;
+
       float cosA = MathF.Cos(angle);
       float sinA = MathF.Sin(angle);
       // build 2d rotation matrix
@@ -166,10 +175,11 @@ namespace FirstEngine
         -sinA, cosA
       };
       scale = 0.5f * (1.0f + 0.25f * MathF.Sin(time * 2.0f));
-      // rotation scale and center
+      // rotation scale and center and screen size
       GL.UniformMatrix2(rotationLoc, 1, false, rot);
       GL.Uniform1(scaleLoc, scale);
-      GL.Uniform2(centerLoc, new Vector2i(0, 0));
+      GL.Uniform2(centerLoc, new Vector2(0, 0));
+      GL.Uniform2(screenSizeLoc, new Vector2(fbz.X, fbz.Y));
 
 
       GL.BindVertexArray(vao);
