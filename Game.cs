@@ -12,8 +12,8 @@ namespace FirstEngine
     private int vbo;
     private int vao;
     private int ebo;
-    private int timeLoc;
-    private float time;
+    private int timeLoc, rotationLoc, scaleLoc, centerLoc;
+    private float time, angle = 0f, scale;
     private int shaderProgramHandle;
     private static NativeWindowSettings native = new()
     {
@@ -87,10 +87,14 @@ namespace FirstEngine
         layout(location = 0) in vec3 aPosition;
 
         out vec2 vUV;
+        uniform mat2 uRotation;
+        uniform float uScale;
+        uniform vec2 uCenter;
 
         void main()
         {
-          gl_Position = vec4(aPosition, 1.0);
+          vec2 pos = uCenter + uRotation * (aPosition.xy * uScale);
+          gl_Position = vec4(pos, aPosition.z, 1.0);
           vUV = aPosition.xy + vec2(0.5);
         }
       ";
@@ -128,6 +132,9 @@ namespace FirstEngine
       GL.LinkProgram(shaderProgramHandle);
 
       timeLoc = GL.GetUniformLocation(shaderProgramHandle, "uTime");
+      rotationLoc = GL.GetUniformLocation(shaderProgramHandle, "uRotation");
+      scaleLoc = GL.GetUniformLocation(shaderProgramHandle, "uScale");
+      centerLoc = GL.GetUniformLocation(shaderProgramHandle, "uCenter");
 
 
       GL.DetachShader(shaderProgramHandle, vShaderHandle);
@@ -140,6 +147,7 @@ namespace FirstEngine
     {
       base.OnUpdateFrame(args);
       time += (float)args.Time;
+      angle = time * 1.0f;
     }
 
     protected override void OnRenderFrame(FrameEventArgs args)
@@ -149,6 +157,20 @@ namespace FirstEngine
       GL.UseProgram(shaderProgramHandle);
 
       GL.Uniform1(timeLoc, time);
+
+      float cosA = MathF.Cos(angle);
+      float sinA = MathF.Sin(angle);
+      // build 2d rotation matrix
+      float[] rot = new float[] {
+        cosA, sinA,
+        -sinA, cosA
+      };
+      scale = 0.5f * (1.0f + 0.25f * MathF.Sin(time * 2.0f));
+      // rotation scale and center
+      GL.UniformMatrix2(rotationLoc, 1, false, rot);
+      GL.Uniform1(scaleLoc, scale);
+      GL.Uniform2(centerLoc, new Vector2i(0, 0));
+
 
       GL.BindVertexArray(vao);
       // Draw element using ebo
